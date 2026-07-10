@@ -1,0 +1,1 @@
+export { NpcTable } from './NpcTable';

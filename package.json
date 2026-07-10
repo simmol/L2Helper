@@ -1,13 +1,15 @@
 {
   "name": "l2-drop",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "parse": "node src/scripts/parseData.cjs",
+    "generate": "node src/scripts/geminiGenerateComponent.cjs"
   },
   "dependencies": {
     "@mantine/core": "^9.4.1",
