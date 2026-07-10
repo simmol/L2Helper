@@ -2,13 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Parses the custom drop string format into an array of objects.
+ * Parses flat custom drop string formats into an array of objects.
  */
 function parseMakeList(value) {
     if (value === '{}' || !value) return [];
 
     const results = [];
-    const regex = /\{\[([^\]]+)\];([\d\.]+);([\d\.]+);([\d\.]+)\}/g;
+    const regex = /\{\[([^\]]+)];([\d.]+);([\d.]+);([\d.]+)}/g;
 
     let match;
     while ((match = regex.exec(value)) !== null) {
@@ -18,6 +18,41 @@ function parseMakeList(value) {
             max_drop: Number(match[3]),
             chance: Number(match[4])
         });
+    }
+    return results;
+}
+
+function parseMultiMakeList(value) {
+    if (value === '{}' || !value) return [];
+
+    const results = [];
+    const groupRegex = /\{\{(.+?)};([\d.]+)}/g;
+    const itemRegex = /\{\[([^\]]+)];([\d.]+);([\d.]+);([\d.]+)}/g;
+
+    let groupMatch;
+    let groupIndex = 0; // Tracks categories sequentially
+
+    while ((groupMatch = groupRegex.exec(value)) !== null) {
+        const itemsBlock = groupMatch[1];
+        const groupChance = Number(groupMatch[2]);
+
+        let itemMatch;
+        itemRegex.lastIndex = 0;
+
+        while ((itemMatch = itemRegex.exec(itemsBlock)) !== null) {
+            const itemChance = Number(itemMatch[4]);
+            const finalChance = (itemChance / 100) * groupChance;
+
+            results.push({
+                item: itemMatch[1],
+                min_drop: Number(itemMatch[2]),
+                max_drop: Number(itemMatch[3]),
+                chance: finalChance,
+                group_id: groupIndex,       // 👈 Added
+                group_chance: groupChance   // 👈 Added
+            });
+        }
+        groupIndex++; // Move to next group container
     }
     return results;
 }
@@ -73,7 +108,7 @@ function convertNpcCsvToJson(inputPath, outputPath) {
                             item['spoil'] = parseMakeList(value);
                         }
                         else if (key === 'additional_make_multi_list') {
-                            item['drop'] = parseMakeList(value);
+                            item['drop'] = parseMultiMakeList(value);
                         } else if (key === 'additional_make_list') {
                             item[key] = parseMakeList(value);
                         } else {

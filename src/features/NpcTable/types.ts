@@ -3,6 +3,8 @@ export interface DropItem {
   min_drop: number;
   max_drop: number;
   chance: number;
+  group_id?: number;
+  group_chance?: number;
 }
 
 export interface NpcData {
