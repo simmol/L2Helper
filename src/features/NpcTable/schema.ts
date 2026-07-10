@@ -33,10 +33,6 @@ export const NPC_COLUMNS = [
     key: 'spoil', label: 'Spoils',
     transform: (val: any) => cleanDropList(val)
   },
-  // {
-  //   key: 'additional_make_list', label: 'Additional Make',
-  //   transform: (val: any) => val || []
-  // },
   {
     key: 'drop', label: 'Drops',
     transform: (val: any) => cleanDropList(val)
