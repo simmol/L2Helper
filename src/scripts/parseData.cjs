@@ -48,8 +48,9 @@ function parseMultiMakeList(value) {
                 min_drop: Number(itemMatch[2]),
                 max_drop: Number(itemMatch[3]),
                 chance: finalChance,
-                group_id: groupIndex,       // 👈 Added
-                group_chance: groupChance   // 👈 Added
+                group_id: groupIndex,
+                group_chance: groupChance,
+                internal_chance: itemChance // 👈 ADD THIS: Keeps the raw unscaled percentage
             });
         }
         groupIndex++; // Move to next group container

@@ -5,6 +5,7 @@ export interface DropItem {
   chance: number;
   group_id?: number;
   group_chance?: number;
+  internal_chance?: number;
 }
 
 export interface NpcData {

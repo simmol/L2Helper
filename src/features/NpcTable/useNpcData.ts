@@ -8,7 +8,7 @@ import type { NpcData } from './types';
 
 const DB_NAME = 'NpcDatabase';
 const STORE_NAME = 'NpcStore';
-const DATA_VERSION = '1.1.0';
+const DATA_VERSION = '1.1.1';
 const CACHE_KEY = `npc-data-${NPC_COLUMNS.map(c => c.key).join('-')}-${DATA_VERSION}`;
 
 // Initialize IndexedDB
