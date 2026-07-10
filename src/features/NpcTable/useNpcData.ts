@@ -1,10 +1,15 @@
+// noinspection ExceptionCaughtLocallyJS
+
+import { notifications } from '@mantine/notifications';
 import { useEffect, useState } from 'react';
-import type { NpcData } from './types';
 import { NPC_COLUMNS } from './schema';
+
+import type { NpcData } from './types';
 
 const DB_NAME = 'NpcDatabase';
 const STORE_NAME = 'NpcStore';
-const CACHE_KEY = `npc-data-${NPC_COLUMNS.map(c => c.key).join('-')}`;
+const DATA_VERSION = '1.0.1';
+const CACHE_KEY = `npc-data-${NPC_COLUMNS.map(c => c.key).join('-')}-${DATA_VERSION}`;
 
 // Initialize IndexedDB
 const initDB = (): Promise<IDBDatabase> => {
@@ -89,8 +94,22 @@ export function useNpcData() {
         await setCachedData(stripped);
 
         setData(stripped);
+        notifications.show({
+          title: 'Data loaded successfully!',
+          message: 'Data loaded successfully!',
+          color: 'green',
+          position: 'top-center', // Shows the error on top of the page
+        });
+
       } catch (error) {
         console.error("Failed to load NPC data:", error);
+        // Trigger the Mantine notification
+        notifications.show({
+          title: 'Error loading data',
+          message: error instanceof Error ? error.message : 'An unknown error occurred',
+          color: 'red',
+          position: 'top-center', // Shows the error on top of the page
+        });
       } finally {
         setLoading(false);
       }

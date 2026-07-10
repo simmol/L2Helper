@@ -1,10 +1,23 @@
-import { useState, useMemo } from 'react';
-import { ReactDataGrid } from '@geovi/the-datagrid';
 import type { TypeColumns } from '@geovi/the-datagrid';
-import { TextInput, Select, NumberInput, Stack, Text, Badge, Group, Paper, Title, Box, Loader, Center } from '@mantine/core';
+import { ReactDataGrid } from '@geovi/the-datagrid';
+import {
+  Badge,
+  Box,
+  Center,
+  Group,
+  Loader,
+  NumberInput,
+  Paper,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title
+} from '@mantine/core';
+import { useMemo, useState } from 'react';
 import { NPC_COLUMNS } from "./schema.ts"
-import { useNpcData } from './useNpcData';
 import type { DropItem } from './types';
+import { useNpcData } from './useNpcData';
 
 import "@geovi/the-datagrid/style.css";
 
@@ -48,14 +61,38 @@ export function NpcTable() {
     });
   }, [data, nameFilter, typeFilter, itemFilter, minLvl, maxLvl]);
 
-  const renderDrops = (drops?: DropItem[]) => {
+  const renderDrops = (drops?: DropItem[], query?: string) => {
     if (!drops || drops.length === 0) return <Text size="sm" c="dimmed">-</Text>;
+
+    const isMatch = (itemName: string) =>
+      query && itemName.toLowerCase().includes(query.toLowerCase());
+
+    // Helper to format chance:
+    // parseFloat ensures we don't show trailing zeros (e.g., 5.0000 -> 5)
+    // .toFixed(4) forces up to 4 digits if decimals exist
+    const formatChance = (chance: number) => parseFloat(chance.toFixed(4));
+
+    const formatDropSize = (min: number, max: number) => (min == max) ? <>{min}</> : <>{min} - {max}</>
     return (
       <Stack gap={4} py="xs">
         {drops.map((d, i) => (
           <Group key={i} gap="xs" wrap="nowrap">
-            <Badge size="sm" variant="light" w={65}>{d.chance}%</Badge>
-            <Text size="sm">{d.item} ({d.min_drop} - {d.max_drop})</Text>
+            <Badge
+              size="sm"
+              // Highlight if matches the query
+              variant={isMatch(d.item) ? "filled" : "light"}
+              color={isMatch(d.item) ? "yellow" : "blue"}
+              w={70}
+            >
+              {formatChance(d.chance)}%
+            </Badge>
+            <Text
+              size="sm"
+              fw={isMatch(d.item) ? 700 : 400}
+              c={isMatch(d.item) ? "yellow.7" : "inherit"}
+            >
+              {d.item} | {formatDropSize(d.min_drop, d.max_drop)}
+            </Text>
           </Group>
         ))}
       </Stack>
@@ -67,7 +104,7 @@ export function NpcTable() {
     header: col.label,
     render: ({ value }: any) => {
       // Centralized rendering logic
-      if (col.key === 'spoil' || col.key.includes('make')) return renderDrops(value);
+      if (col.key === 'spoil' || col.key === 'drop' || col.key.includes('make')) return renderDrops(value, itemFilter);
       if (col.key === 'name') return <Text fw={500}>{value}</Text>;
       if (col.key === 'type') return <Badge>{value}</Badge>;
       return <Text>{value}</Text>;
@@ -76,54 +113,18 @@ export function NpcTable() {
     flex: col.key.includes('list') ? 1 : undefined
   }));
 
-  // const columns: TypeColumns = [
-  //   {
-  //     name: 'name',
-  //     header: 'Name',
-  //     render: ({ value }: any) => <Text fw={500}>{value as string}</Text>,
-  //     minWidth: 150
-  //   },
-  //   {
-  //     name: 'lvl',
-  //     header: 'Lvl',
-  //     render: ({ value }: any) => <Text>{value as number}</Text>,
-  //     minWidth: 70,
-  //     width: 70
-  //   },
-  //   {
-  //     name: 'type',
-  //     header: 'Type',
-  //     render: ({ value }: any) => <Badge color="blue">{value as string}</Badge>,
-  //     minWidth: 120
-  //   },
-  //   {
-  //     name: 'spoil',
-  //     header: 'Spoils',
-  //     render: ({ value }: any) => renderDrops(value as DropItem[]),
-  //     minWidth: 250,
-  //     flex: 1
-  //   },
-  //   {
-  //     name: 'additional_make_list',
-  //     header: 'Additional Make',
-  //     render: ({ value }: any) => renderDrops(value as DropItem[]),
-  //     minWidth: 250,
-  //     flex: 1
-  //   },
-  //   {
-  //     name: 'additional_make_multi_list',
-  //     header: 'Additional Multi',
-  //     render: ({ value }: any) => renderDrops(value as DropItem[]),
-  //     minWidth: 250,
-  //     flex: 1
-  //   }
-  // ];
-
   return (
     <Paper p="md" shadow="sm" radius="md" withBorder>
       <Title order={3} mb="md">NPC Drops & Spoils</Title>
 
       <Group mb="md" align="flex-end">
+        <TextInput
+          label="Search Item"
+          placeholder="e.g. animal_bone"
+          value={itemFilter}
+          onChange={(e) => setItemFilter(e.currentTarget.value)}
+          flex={2}
+        />
         <TextInput
           label="Search by NPC"
           placeholder="e.g. pet_wolf"
@@ -159,19 +160,13 @@ export function NpcTable() {
           searchable
           flex={2}
         />
-        <TextInput
-          label="Search Item"
-          placeholder="e.g. animal_bone"
-          value={itemFilter}
-          onChange={(e) => setItemFilter(e.currentTarget.value)}
-          flex={2}
-        />
+
       </Group>
 
       <Box h={700}>
         {loading ? (
           <Center h="100%">
-            <Loader />
+            <Loader/>
           </Center>
         ) : (
           <ReactDataGrid

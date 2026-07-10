@@ -71,7 +71,10 @@ function convertNpcCsvToJson(inputPath, outputPath) {
 
                         if (key === 'corpse_make_list') {
                             item['spoil'] = parseMakeList(value);
-                        } else if (key === 'additional_make_list' || key === 'additional_make_multi_list') {
+                        }
+                        else if (key === 'additional_make_multi_list') {
+                            item['drop'] = parseMakeList(value);
+                        } else if (key === 'additional_make_list') {
                             item[key] = parseMakeList(value);
                         } else {
                             item[key] = value;
