@@ -8,7 +8,7 @@ import type { NpcData } from './types';
 
 const DB_NAME = 'NpcDatabase';
 const STORE_NAME = 'NpcStore';
-const DATA_VERSION = '1.1.1';
+const DATA_VERSION = '1.1.2';
 const CACHE_KEY = `npc-data-${NPC_COLUMNS.map(c => c.key).join('-')}-${DATA_VERSION}`;
 
 // Initialize IndexedDB
@@ -87,8 +87,15 @@ export function useNpcData() {
         }
         const rawData = await response.json();
 
-        // 3. Map/Transform using the schema
-        const stripped: NpcData[] = rawData.map(transformNpc);
+        // 👇 NEW: Filter down to allowed types before transforming and caching
+        const allowedTypes = ['warrior', 'boss', 'treasure'];
+        const filteredData = rawData.filter((npc: any) => {
+          const typeStr = (npc.type || '').toLowerCase();
+          return allowedTypes.some(allowed => typeStr.includes(allowed));
+        });
+
+        // 3. Map/Transform using the schema (now using the smaller, filtered array)
+        const stripped: NpcData[] = filteredData.map(transformNpc);
 
         // 4. Cache result in IndexedDB
         await setCachedData(stripped);
@@ -98,17 +105,16 @@ export function useNpcData() {
           title: 'Data loaded successfully!',
           message: 'Data loaded successfully!',
           color: 'green',
-          position: 'top-center', // Shows the error on top of the page
+          position: 'top-center',
         });
 
       } catch (error) {
         console.error("Failed to load NPC data:", error);
-        // Trigger the Mantine notification
         notifications.show({
           title: 'Error loading data',
           message: error instanceof Error ? error.message : 'An unknown error occurred',
           color: 'red',
-          position: 'top-center', // Shows the error on top of the page
+          position: 'top-center',
         });
       } finally {
         setLoading(false);
