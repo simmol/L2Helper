@@ -49,10 +49,13 @@ export function NpcTable() {
       // 4. Item Filter
       if (itemFilter) {
         const query = itemFilter.toLowerCase();
+        if(!query) {
+          return false
+        }
         const hasItem = (drops?: DropItem[]) =>
           drops?.some(drop => drop.item.toLowerCase().includes(query));
 
-        if (!hasItem(item.spoil) && !hasItem(item.additional_make_list) && !hasItem(item.additional_make_multi_list)) {
+        if (!hasItem(item.spoil) && !hasItem(item.drop)) {
           return false;
         }
       }
@@ -163,7 +166,7 @@ export function NpcTable() {
 
       </Group>
 
-      <Box h={700}>
+      <Box h={1000}>
         {loading ? (
           <Center h="100%">
             <Loader/>

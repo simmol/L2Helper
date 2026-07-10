@@ -11,6 +11,5 @@ export interface NpcData {
   lvl: number;
   name: string;
   spoil: DropItem[];
-  additional_make_list: DropItem[];
-  additional_make_multi_list: DropItem[];
+  drop: DropItem[];
 }
