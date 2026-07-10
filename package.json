@@ -12,6 +12,7 @@
     "generate": "node src/scripts/geminiGenerateComponent.cjs"
   },
   "dependencies": {
+    "@geovi/the-datagrid": "^0.0.3",
     "@mantine/core": "^9.4.1",
     "@mantine/hooks": "^9.4.1",
     "@mantine/notifications": "^9.4.1",

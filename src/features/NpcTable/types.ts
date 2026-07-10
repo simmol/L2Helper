@@ -8,6 +8,7 @@ export interface DropItem {
 export interface NpcData {
   id: string;
   type: string;
+  lvl: number;
   name: string;
   spoil: DropItem[];
   additional_make_list: DropItem[];

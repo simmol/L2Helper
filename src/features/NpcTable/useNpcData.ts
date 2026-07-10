@@ -1,5 +1,64 @@
 import { useEffect, useState } from 'react';
 import type { NpcData } from './types';
+import { NPC_COLUMNS } from './schema';
+
+const DB_NAME = 'NpcDatabase';
+const STORE_NAME = 'NpcStore';
+const CACHE_KEY = `npc-data-${NPC_COLUMNS.map(c => c.key).join('-')}`;
+
+// Initialize IndexedDB
+const initDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (e: any) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+  });
+};
+
+// Helper: Get cached data
+const getCachedData = async (): Promise<NpcData[] | null> => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(CACHE_KEY);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    console.warn('Failed to read from IndexedDB', err);
+    return null;
+  }
+};
+
+// Helper: Save cached data
+const setCachedData = async (data: NpcData[]): Promise<void> => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    store.clear(); // Ensure only the current schema is stored
+    store.put(data, CACHE_KEY);
+  } catch (err) {
+    console.warn('Failed to save to IndexedDB', err);
+  }
+};
+
+// Transformation logic using Schema
+const transformNpc = (rawNpc: any): NpcData => {
+  const transformed: any = { id: rawNpc.id || crypto.randomUUID() };
+  NPC_COLUMNS.forEach(col => {
+    transformed[col.key as keyof NpcData] = col.transform(rawNpc[col.key], rawNpc);
+  });
+  return transformed as NpcData;
+};
 
 export function useNpcData() {
   const [data, setData] = useState<NpcData[]>([]);
@@ -8,37 +67,26 @@ export function useNpcData() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const CACHE_KEY = 'npc-data-parsed-minified';
-        const cached = localStorage.getItem(CACHE_KEY);
-
+        // 1. Try to load from IndexedDB
+        const cached = await getCachedData();
         if (cached) {
-          setData(JSON.parse(cached));
+          setData(cached);
           setLoading(false);
           return;
         }
 
-        // Dynamically import to prevent Vite from blocking initial page load with a huge JSON
+        // 2. Fetch fresh JSON from public folder
         const response = await fetch('/npcdata_parsed.json');
         if (!response.ok) {
           throw new Error(`Failed to load NPC data: ${response.statusText}`);
         }
         const rawData = await response.json();
 
-        // Map and clean only the required columns to keep the size well under the 5MB LocalStorage limit
-        const stripped: NpcData[] = rawData.map((npc: any) => ({
-          id: npc.id || crypto.randomUUID(),
-          type: npc.type || '',
-          name: npc.name ? npc.name.replace(/^\[|\]$/g, '') : '', // Strip []
-          spoil: npc.spoil || [],
-          additional_make_list: npc.additional_make_list || [],
-          additional_make_multi_list: npc.additional_make_multi_list || []
-        }));
+        // 3. Map/Transform using the schema
+        const stripped: NpcData[] = rawData.map(transformNpc);
 
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(stripped));
-        } catch (storageError) {
-          console.warn('LocalStorage is full or disabled:', storageError);
-        }
+        // 4. Cache result in IndexedDB
+        await setCachedData(stripped);
 
         setData(stripped);
       } catch (error) {
