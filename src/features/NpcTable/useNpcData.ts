@@ -8,7 +8,7 @@ import type { NpcData } from './types';
 
 const DB_NAME = 'NpcDatabase';
 const STORE_NAME = 'NpcStore';
-const DATA_VERSION = '1.1.2';
+const DATA_VERSION = '1.1.9';
 const CACHE_KEY = `npc-data-${NPC_COLUMNS.map(c => c.key).join('-')}-${DATA_VERSION}`;
 
 // Initialize IndexedDB
@@ -62,6 +62,17 @@ const transformNpc = (rawNpc: any): NpcData => {
   NPC_COLUMNS.forEach(col => {
     transformed[col.key as keyof NpcData] = col.transform(rawNpc[col.key], rawNpc);
   });
+
+  // 2. Explicitly map extra stats (Logic/Popover Data)
+  // These are now available in 'data' inside your Grid render/Popover
+  transformed.hp = Math.round(parseFloat(rawNpc.org_hp || 0));
+  transformed.mp = Math.round(parseFloat(rawNpc.org_mp || 0));
+  transformed.pAtk = Math.round(parseFloat(rawNpc.base_physical_attack || 0));
+  transformed.mAtk = Math.round(parseFloat(rawNpc.base_magic_attack || 0));
+  transformed.pDef = Math.round(parseFloat(rawNpc.base_defend || 0));
+  transformed.mDef = Math.round(parseFloat(rawNpc.base_magic_defend || 0));
+  transformed.isAggressive = parseInt(rawNpc.agro_range || 0) > 0;
+
   return transformed as NpcData;
 };
 
@@ -72,7 +83,6 @@ export function useNpcData() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 1. Try to load from IndexedDB
         const cached = await getCachedData();
         if (cached) {
           setData(cached);
@@ -80,26 +90,43 @@ export function useNpcData() {
           return;
         }
 
-        // 2. Fetch fresh JSON from public folder
         const response = await fetch('/npcdata_parsed.json');
         if (!response.ok) {
           throw new Error(`Failed to load NPC data: ${response.statusText}`);
         }
         const rawData = await response.json();
 
-        // 👇 NEW: Filter down to allowed types before transforming and caching
         const allowedTypes = ['warrior', 'boss', 'treasure'];
+
+        // Helper function to safely check if a raw loot string is empty
+        const isEmptyLoot = (val: any) => {
+          if (Array.isArray(val)) {
+            return val.length === 0;
+          }
+        };
+
+        // 1. FILTER: By Type AND non-empty Drops before doing any heavy processing
         const filteredData = rawData.filter((npc: any) => {
+          // Check Type
           const typeStr = (npc.type || '').toLowerCase();
-          return allowedTypes.some(allowed => typeStr.includes(allowed));
+          const isAllowedType = allowedTypes.some(allowed => typeStr.includes(allowed));
+          if (!isAllowedType) return false;
+
+          // Check Loot (Checking both 'drop' and 'spoil')
+          const noSpoil = isEmptyLoot(npc.spoil);
+          const noDrop = isEmptyLoot(npc.drop);
+
+          // Keep the NPC if it has at least one valid loot string
+          return (!noSpoil || !noDrop);
         });
 
-        // 3. Map/Transform using the schema (now using the smaller, filtered array)
+        // 2. TRANSFORM: Now we only run the regex parser on NPCs we are definitely keeping
         const stripped: NpcData[] = filteredData.map(transformNpc);
 
-        // 4. Cache result in IndexedDB
+        // 3. CACHE & SET
         await setCachedData(stripped);
 
+        console.debug(stripped)
         setData(stripped);
         notifications.show({
           title: 'Data loaded successfully!',

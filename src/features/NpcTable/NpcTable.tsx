@@ -2,26 +2,75 @@ import type { TypeColumns } from '@geovi/the-datagrid';
 import { ReactDataGrid } from '@geovi/the-datagrid';
 import {
   Badge,
-  Box,
   Center,
   Group,
+  HoverCard,
   Loader,
   NumberInput,
   Paper,
   Select,
-  Stack,
   Text,
   TextInput,
-  Title,
-  Tooltip
+  Title
 } from '@mantine/core';
 import { useDebouncedCallback } from "@mantine/hooks"; // 👈 Changed to Callback
 import { useMemo, useState } from 'react';
+import { DropCell } from "./DropCell.tsx"
 import { NPC_COLUMNS } from "./schema.ts";
-import type { DropItem } from './types';
 import { useNpcData } from './useNpcData';
 
 import "@geovi/the-datagrid/style.css";
+
+const StatField = ({ label, value }: { label: string, value: string | number | undefined }) => (
+  <div style={{ background: '#f8f9fa', padding: '6px', borderRadius: '4px' }}>
+    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>{label}</Text>
+    <Text size="sm" fw={500}>{value ?? '-'}</Text>
+  </div>
+);
+
+const NpcHoverCell = ({ value, data }: { value: any, data: any }) => {
+  return (
+    <HoverCard
+      width={300}
+      position="bottom-start"
+      withArrow
+      shadow="md"
+      openDelay={200}
+      closeDelay={200}
+    >
+      <HoverCard.Target >
+        <Text fw={600} c="blue.6">
+          {value}
+        </Text>
+      </HoverCard.Target>
+
+      <HoverCard.Dropdown>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <Text fw={700} size="md">{data.name}</Text>
+          <Badge color={data.isAggressive ? "red" : "green"}>
+            {data.isAggressive ? "Aggressive" : "Passive"}
+          </Badge>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <StatField label="HP" value={data.hp}/>
+          <StatField label="MP" value={data.mp}/>
+          <StatField label="P.Atk" value={data.pAtk}/>
+          <StatField label="M.Atk" value={data.mAtk}/>
+          <StatField label="P.Def" value={data.pDef}/>
+          <StatField label="M.Def" value={data.mDef}/>
+        </div>
+
+        <div style={{ marginTop: '12px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+          <Text size="xs" c="dimmed">
+            Level: {data.lvl ?? '-'} | Type: {data.type ?? '-'}
+          </Text>
+        </div>
+      </HoverCard.Dropdown>
+    </HoverCard>
+  );
+};
+
 
 export function NpcTable() {
   const { data, loading } = useNpcData();
@@ -74,93 +123,33 @@ export function NpcTable() {
     return result;
   }, [data, searchName, typeFilter, searchItem, minLvl, maxLvl]);
 
-  const renderDrops = (drops?: DropItem[], query?: string) => {
-    if (!drops || drops.length === 0) return <Text size="sm" c="dimmed">-</Text>;
-
-    const isMatch = (itemName: string) =>
-      query && itemName.toLowerCase().includes(query.toLowerCase());
-
-    const formatChance = (chance: number) => parseFloat(chance.toFixed(4));
-
-    return (
-      <Stack gap={4} py="xs">
-        {drops.map((d, i) => {
-          const isGroupItem = d.group_id !== undefined;
-          const isNewGroup = isGroupItem && (i === 0 || d.group_id !== drops[i - 1].group_id);
-
-          const hasRange = d.max_drop - d.min_drop >= 1;
-          const hasStaticMultiple = d.max_drop === d.min_drop && d.min_drop > 1;
-
-          return (
-            <div key={i}>
-              {isNewGroup && (
-                <Group gap={6} mt={i > 0 ? "xs" : 0} mb={4}>
-                  <Text size="xs" c="dimmed" fw={700} style={{ letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Group Pool ({formatChance(d.group_chance!)}% rate)
-                  </Text>
-                  <div style={{ flex: 1, borderTop: '1px dashed var(--mantine-color-dark-4)' }} />
-                </Group>
-              )}
-
-              <Group gap="xs" wrap="nowrap" pl={isGroupItem ? "sm" : 0}>
-                <Tooltip
-                  label={isGroupItem
-                    ? `Formula: Group (${formatChance(d.group_chance!)}%) × Slot (${formatChance(d.internal_chance!)}%)`
-                    : "Flat standalone server roll"
-                  }
-                  position="right"
-                  withArrow
-                >
-                  <Badge
-                    size="sm"
-                    variant={isMatch(d.item) ? "filled" : "light"}
-                    color={isMatch(d.item) ? "yellow" : isGroupItem ? "indigo" : "blue"}
-                    w={75}
-                    style={{ cursor: 'help' }}
-                  >
-                    {formatChance(d.chance)}%
-                  </Badge>
-                </Tooltip>
-
-                <Text
-                  size="sm"
-                  fw={isMatch(d.item) ? 700 : 400}
-                  c={isMatch(d.item) ? "yellow.7" : "inherit"}
-                >
-                  {d.item}
-                  {hasRange && ` (${d.min_drop} - ${d.max_drop})`}
-                  {hasStaticMultiple && ` (${d.min_drop})`}
-
-                  {isGroupItem && (
-                    <Text component="span" size="xs" c="dimmed" ml="xs" fw={400}>
-                      [{formatChance(d.internal_chance!)}%]
-                    </Text>
-                  )}
-                </Text>
-              </Group>
-            </div>
-          );
-        })}
-      </Stack>
-    );
-  };
 
   const columns: TypeColumns = useMemo(() => {
     return NPC_COLUMNS.map(col => ({
       name: col.key,
       header: col.label,
-      render: ({ value }: any) => {
-        if (col.key === 'spoil' || col.key === 'drop' || col.key.includes('make')) {
-          // Hooking into the committed searchItem state
-          return renderDrops(value, searchItem);
+      minWidth: 100,
+      flex: col.key === 'name' ? 1 : undefined,
+      cellStyle: col.key === 'name' ? { padding: 0 } : undefined,
+      render: ({ value, data }: any) => {
+
+        // 1. THE POPOVER FOR STATS (Name Column)
+        if (col.key === 'name') {
+          return <NpcHoverCell data={data} value={value}/>
         }
-        if (col.key === 'name') return <Text fw={500}>{value}</Text>;
-        if (col.key === 'type') return <Badge>{value}</Badge>;
-        return <Text>{value}</Text>;
+
+        // 2. YOUR ORIGINAL DROP/SPOIL LOGIC
+        if (col.key === 'spoil' || col.key === 'drop') {
+          return <DropCell drops={value} query={searchItem}/>;
+        }
+
+        // 3. STANDARD RENDER
+        if (col.key === 'type') return <Badge size="sm" variant="dot">{value}</Badge>;
+        return <Text size="sm">{value}</Text>;
       },
-      flex: col.key.includes('list') ? 1 : undefined
     }));
-  }, [searchItem]); // Update grid renders only when the final item search updates
+  }, [searchItem]);
+
 
   const gridViewport = useMemo(() => {
     if (loading) {
@@ -177,6 +166,9 @@ export function NpcTable() {
         dataSource={filteredData}
         virtualized={true}
         theme="default"
+        // rowHeight={80}
+        // defaultLimit={10}
+        allowMobileTransform
         enableColumnAutosize
       />
     );
@@ -234,13 +226,14 @@ export function NpcTable() {
       </Group>
       <Group mb="md" align="flex-end">
         <Text size="sm" c="dimmed" fw={500} mb={5}>
-          Showing <b style={{ color: 'var(--mantine-color-blue-filled)' }}>{filteredData.length}</b> / {data.length} monsters
+          Showing <b
+          style={{ color: 'var(--mantine-color-blue-filled)' }}>{filteredData.length}</b> / {data.length} monsters
         </Text>
       </Group>
 
-      <Box h={1000}>
+      <div style={{ height: '1000px', width: '100%', overflow: 'hidden' }}>
         {gridViewport}
-      </Box>
+      </div>
     </Paper>
   );
 }
