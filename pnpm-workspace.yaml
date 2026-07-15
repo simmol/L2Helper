@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@geovi/the-datagrid@0.0.5 || 0.0.7 || 0.0.8-preview.20260714T081243Z.7a9b83c || 0.0.8'
